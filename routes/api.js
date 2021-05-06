@@ -69,11 +69,11 @@ module.exports = function (app) {
 
 
               if (like) {
-                Ip.findOne({ip: clientIp}, (err, data) => {
+                await Ip.findOne({ip: clientIp}, async function (err, data)  {
                   if ( ! err) {
                     if (!data) {
                       let newip = new Ip({ip: clientIp})
-                      newip.save((err, data) => {
+                      await newip.save((err, data) => {
                         if (! err){
                           console.log(data)
                         }
@@ -81,21 +81,17 @@ module.exports = function (app) {
                     }
                   }
                 })
-
               }
-              
 
               Ip.countDocuments((err, number) => {
 
                 return res.send({stockData: {
                   stock: data.symbol,
                   price: data.latestPrice,
-                  likes
+                  likes: number
                 }})
 
               })
-
-              
               
             }
           })
