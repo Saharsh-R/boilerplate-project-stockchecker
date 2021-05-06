@@ -20,6 +20,7 @@ module.exports = function (app) {
     .get( async function (req, res){
      
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress 
+      console.log(clientIp)
       let {stock, like} = req.query
       if (Array.isArray(stock)){
 
@@ -68,7 +69,7 @@ module.exports = function (app) {
 
 
               if (like) {
-                Ip.findOne({ip: clientIp}, (err, data) => {
+                await Ip.findOne({ip: clientIp}, (err, data) => {
                   if ( ! err) {
                     if (!data) {
                       let newip = new Ip({ip: clientIp})
@@ -86,10 +87,11 @@ module.exports = function (app) {
 
               await Ip.countDocuments((err, number) => {
                 likes = number
+              console.log( likes)
+
               })
 
               
-              console.log( likes)
               return res.send({stockData: {
                 stock: data.symbol,
                 price: data.latestPrice,
