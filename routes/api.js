@@ -11,8 +11,43 @@ const ipSchema = new mongoose.Schema({
   ip: String
 })
 
-// create schema
-// Database = mongoose.model('ipadd', )
+
+async function getStock(stock){
+  const response = await fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock}/quote`)
+  const {symbol, latestPrice} = await response.json()
+  // console.log(symbol, latestPrice)
+  return {stock: symbol, price: latestPrice}
+}
+
+async function createLike(ip, stock){
+  let Ip = await mongoose.model(stock, ipSchema)
+  await Ip.findOne({ip}, async function (err, data)  {
+    if ( ! err) {
+      if (!data) {
+        let newip = new Ip({ip})
+        await newip.save((err, data) => {
+          if (! err){
+            // console.log(data)
+          }
+        })
+      } else{
+        // console.log('already present')
+      }
+    }
+  }) 
+}
+
+async function getNumber(stock){
+  let Ip = await mongoose.model(stock, ipSchema)
+  const answer = await Ip.countDocuments({})
+  
+  // console.log(stock, answer)
+  return answer
+}
+
+// console.log('manual', getNumber('GOOG'))
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
 
 module.exports = function (app) {
 
@@ -20,82 +55,64 @@ module.exports = function (app) {
     .get( async function (req, res){
      
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress 
-      console.log(clientIp)
-      let {stock, like} = req.query
-      if (Array.isArray(stock)){
+      // console.log(clientIp)
+      let inputStock = req.query.stock
+      let inputLike = req.query.like
+      if (Array.isArray(inputStock)){
 
-        fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock[0]}/quote`)
-          .then(res => res.json())
-          .then(data => {
-            if (typeof data == 'string'){
-              return res.send('First stock is not valid')
-            } else {
+        const data1 = await getStock(inputStock[0])
+        let stock1 = await data1.stock
+        let price1 = await data1.price
+        if (!stock1){
+          return res.send('First stock not valid')
+        }
 
-              fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock[1]}/quote`)
-                .then(res => res.json())
-                .then(data2 => {
-                  if (typeof data2 == 'string'){
-                    return res.send('Second stock is not valid')
-                  } else {
+        const data2 = await getStock(inputStock[1])
+        let stock2 = await data2.stock
+        let price2 = await data2.price
+        if (!stock2){
+          return res.send('Second stock not valid')
+        }
 
-                    return res.send({stockData: [
-                      {
-                        stock: data.symbol,
-                        price: data.latestPrice,
-                        rel_likes: 0
-                      },
-                      {
-                        stock: data2.symbol,
-                        price: data2.latestPrice,
-                        rel_likes: 0
-                      }
-                    ]})
-                  }
-                })
-                .catch(e => console.error(e))
-            }
-          })
-          .catch(e => console.error(e))
+        if (inputLike){
+          await createLike(clientIp, stock1)
+          await createLike(clientIp, stock2)
+          
+        }
+
+        const likes1 = await getNumber(stock1)
+        const likes2 = await getNumber(stock2)
+        await sleep(1500)
+        return res.json({stockData: [
+          {
+            stock: stock1,
+            price: price1,
+            rel_likes: likes1 - likes2
+          },
+          {
+            stock: stock2,
+            price: price2,
+            rel_likes: likes2 - likes1
+          }
+        ]})
+
+
         
       } else {
+        // console.log('=================samll ============')
+        let {stock, price} = await getStock(inputStock)
+        if (!stock){
+          return res.send('Not valid stock')
+        }
+        // console.log(stock)
+        if (inputLike){
+          await createLike(clientIp, stock)
+        }
+        const likes = await getNumber(stock)
+        // console.log(likes)
 
-        fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock}/quote`)
-          .then(res => res.json())
-          .then(async function (data) {
-            if (typeof data == 'string'){
-              return res.send('Please enter a valid stock')
-            } else {
-              let Ip = mongoose.model(data.symbol, ipSchema)
+        return res.json({stockData: {stock, price, likes}})
 
-
-              if (like) {
-                await Ip.findOne({ip: clientIp}, async function (err, data)  {
-                  if ( ! err) {
-                    if (!data) {
-                      let newip = new Ip({ip: clientIp})
-                      await newip.save((err, data) => {
-                        if (! err){
-                          console.log(data)
-                        }
-                      })
-                    }
-                  }
-                })
-              }
-
-              Ip.countDocuments((err, number) => {
-
-                return res.send({stockData: {
-                  stock: data.symbol,
-                  price: data.latestPrice,
-                  likes: number
-                }})
-
-              })
-              
-            }
-          })
-          .catch(e => console.error(e))
       }
     });
     
