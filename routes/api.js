@@ -7,14 +7,19 @@ require('dotenv').config()
 let mongoose = require("mongoose");
 mongoose.pluralize(null);
 mongoose.connect(process.env.DB, { useNewUrlParser: true, useUnifiedTopology: true ,useFindAndModify: false});
+const ipSchema = new mongoose.Schema({
+  ip: String
+})
+
 // create schema
 // Database = mongoose.model('ipadd', )
 
 module.exports = function (app) {
 
   app.route('/api/stock-prices')
-    .get(function (req, res){
-      console.log(req.connection.remoteAddress)
+    .get( async function (req, res){
+     
+      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress 
       let {stock, like} = req.query
       if (Array.isArray(stock)){
 
@@ -55,14 +60,40 @@ module.exports = function (app) {
 
         fetch(`https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stock}/quote`)
           .then(res => res.json())
-          .then(data => {
+          .then(async function (data) {
             if (typeof data == 'string'){
               return res.send('Please enter a valid stock')
             } else {
+              let Ip = mongoose.model(data.symbol, ipSchema)
+
+
+              if (like) {
+                Ip.findOne({ip: clientIp}, (err, data) => {
+                  if ( ! err) {
+                    if (!data) {
+                      let newip = new Ip({ip: clientIp})
+                      newip.save((err, data) => {
+                        if (! err){
+                          console.log(data)
+                        }
+                      })
+                    }
+                  }
+                })
+
+              }
+              var likes 
+
+              await Ip.countDocuments((err, number) => {
+                likes = number
+              })
+
+              
+              console.log( likes)
               return res.send({stockData: {
                 stock: data.symbol,
                 price: data.latestPrice,
-                likes: 0
+                likes
               }})
             }
           })
