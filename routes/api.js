@@ -69,7 +69,7 @@ module.exports = function (app) {
 
 
               if (like) {
-                await Ip.findOne({ip: clientIp}, (err, data) => {
+                Ip.findOne({ip: clientIp}, (err, data) => {
                   if ( ! err) {
                     if (!data) {
                       let newip = new Ip({ip: clientIp})
@@ -83,20 +83,20 @@ module.exports = function (app) {
                 })
 
               }
-              var likes 
+              
 
-              await Ip.countDocuments((err, number) => {
-                likes = number
-              console.log( likes)
+              Ip.countDocuments((err, number) => {
+
+                return res.send({stockData: {
+                  stock: data.symbol,
+                  price: data.latestPrice,
+                  likes
+                }})
 
               })
 
               
-              return res.send({stockData: {
-                stock: data.symbol,
-                price: data.latestPrice,
-                likes
-              }})
+              
             }
           })
           .catch(e => console.error(e))
