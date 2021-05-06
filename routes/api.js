@@ -82,7 +82,6 @@ module.exports = function (app) {
 
         const likes1 = await getNumber(stock1)
         const likes2 = await getNumber(stock2)
-        await sleep(1500)
         return res.json({stockData: [
           {
             stock: stock1,
